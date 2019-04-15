@@ -53,17 +53,24 @@ func TestRandomInsert(t *testing.T) {
 		s.Viz(ofp)
 	})
 	t.Run("Next", func(t *testing.T) {
-		for i := 0; i < (arySize - 1); i++ {
+		for i := 0; i < arySize; i++ {
 			b := s.Get(iKey(i))
 			got := b.Next()
-			if got == nil {
-				t.Errorf("unexpected nil Next(%d)", i)
-			}
-			t.Logf("Next(%d) == %+v", i, *got)
-			v := got.Value.(int)
-			want := -(i + 1)
-			if v != want {
-				t.Errorf("bad Next(%d).Value: got %d, want %d", i, v, want)
+			if i == arySize-1 {
+				if got != nil {
+					t.Errorf("unexpected non-nil next: %+v", *got)
+				}
+				t.Logf("Next(%d) == nil", i)
+			} else {
+				if got == nil {
+					t.Errorf("unexpected nil Next(%d)", i)
+				}
+				t.Logf("Next(%d) == %+v", i, *got)
+				v := got.Value.(int)
+				want := -(i + 1)
+				if v != want {
+					t.Errorf("bad Next(%d).Value: got %d, want %d", i, v, want)
+				}
 			}
 		}
 	})

@@ -170,8 +170,8 @@ func (n *BasicBST) Insert(k KeyType, v interface{}) {
 	}
 }
 
-// Which returns the node's index from its parent.
-func (n *BasicBST) Which() int {
+// which returns the node's index from its parent.
+func (n *BasicBST) which() int {
 	switch p := n.Parent; {
 	case n == p.Child[lo]:
 		return lo
@@ -182,23 +182,38 @@ func (n *BasicBST) Which() int {
 	}
 }
 
-// Next returns the next node.
-func (n *BasicBST) Next() *BasicBST {
-	if n.Child[hi] != nil {
-		cur := n.Child[hi]
-		for cur.Child[lo] != nil {
-			cur = cur.Child[lo]
+// opposite reverses a direction.
+func opposite(d int) int {
+	return (d + 1) % 2
+}
+
+func (n *BasicBST) next(d int) *BasicBST {
+	r := opposite(d)
+	if n.Child[d] != nil {
+		cur := n.Child[d]
+		for cur.Child[r] != nil {
+			cur = cur.Child[r]
 		}
 		return cur
 	}
 	cur := n
-	for cur.Which() == hi {
+	for cur.which() == d {
 		cur = cur.Parent
 	}
 	if cur.Parent.IsSentinel() {
 		return nil
 	}
 	return cur.Parent
+}
+
+// Next returns the next node.
+func (n *BasicBST) Next() *BasicBST {
+	return n.next(hi)
+}
+
+// Prev returns the previous node.
+func (n *BasicBST) Prev() *BasicBST {
+	return n.next(lo)
 }
 
 // Delete removes a node from the tree.
