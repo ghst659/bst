@@ -224,7 +224,17 @@ func (n *BasicBST) Delete() {
 		return
 	case n == nil:
 		return
+	case n.Child[hi] == nil:
+		n.Parent.Child[n.which()] = n.Child[lo]
+	case n.Child[lo] == nil:
+		n.Parent.Child[n.which()] = n.Child[hi]
 	default:
-		// TODO
+		cur := n.Child[hi]
+		for cur.Child[lo] != nil {
+			cur = cur.Child[lo]
+		}
+		n.Key = cur.Key
+		n.Value = cur.Value
+		cur.Delete()
 	}
 }

@@ -153,4 +153,16 @@ func TestBasicInsertAndVisit(t *testing.T) {
 			}
 		}
 	})
+	t.Run("Delete", func(t *testing.T) {
+		d := s.Get(iKey(3))
+		d.Delete()
+		v := 0
+		for n := range s.Check(ctx) {
+			t.Logf("violation after delete: %+v", *n)
+			v++
+		}
+		if v > 0 {
+			t.Errorf("delete violations: %d", v)
+		}
+	})
 }
