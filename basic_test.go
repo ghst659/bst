@@ -44,7 +44,7 @@ func TestRandomInsert(t *testing.T) {
 		v := -k
 		s.Insert(iKey(k), v)
 	}
-	t.Run("Viz", func(t *testing.T) {
+	t.Run("VizBefore", func(t *testing.T) {
 		ofp, err := os.Create("/tmp/shuf.dot")
 		if err != nil {
 			t.Error("cannot create file")
@@ -73,6 +73,18 @@ func TestRandomInsert(t *testing.T) {
 				}
 			}
 		}
+	})
+	t.Run("DeleteAndViz", func(t *testing.T) {
+		for _, k := range [...]int{47, 14, 8} {
+			d := s.Get(iKey(k))
+			d.Delete()
+		}
+		ofp, err := os.Create("/tmp/after.dot")
+		if err != nil {
+			t.Error("cannot create file")
+		}
+		defer ofp.Close()
+		s.Viz(ofp)
 	})
 }
 
