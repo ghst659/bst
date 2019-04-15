@@ -187,6 +187,7 @@ func opposite(d int) int {
 	return (d + 1) % 2
 }
 
+// next returns the next tree node in the given direction.
 func (n *BasicBST) next(d int) *BasicBST {
 	r := opposite(d)
 	if n.Child[d] != nil {
