@@ -14,11 +14,18 @@ type KeyType interface {
 	String() string
 }
 
-// enums for the left and right sides of the tree.
+// enums for the left and right sides of the tree.ba
 const (
 	lo = iota
 	hi
 )
+
+func imax(a b int) int {
+	if a < b {
+		return b
+	}
+	return a
+}
 
 // BasicBST is a basic unoptimised unbalanced BST.
 type BasicBST struct {
@@ -26,10 +33,25 @@ type BasicBST struct {
 	Value  interface{}
 	Parent *BasicBST
 	Child  [2]*BasicBST // index is oneof {lo, hi}
+	Height int
 }
 
 func (n *BasicBST) IsSentinel() bool {
 	return n != nil && n.Parent == n
+}
+
+func (n *BasicBST) height() int {
+	if n == nil || n.IsSentinel() {
+		return -1
+	}
+	return n.Height
+}
+
+func (n *BasicBST) calcHeight() int {
+	if n != nil {
+		n.Height = 1 + imax(n.Child[lo].height(), n.Child[hi].height())
+	}
+	return n.height()
 }
 
 // NewBasic allocates a new BasiccBST.
