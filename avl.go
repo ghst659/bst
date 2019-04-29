@@ -7,40 +7,42 @@ import (
 	"io"
 )
 
-// KeyType is the interface required from BST keys.
-type KeyType interface {
-	Equal(KeyType) bool
-	Less(KeyType) bool
-	String() string
-}
-
-// enums for the left and right sides of the tree.ba
-const (
-	lo = iota
-	hi
-)
-
-// BasicBST is a basic unoptimised unbalanced BST.
-type BasicBST struct {
+// AVL is a basic unoptimised unbalanced BST.
+type AVL struct {
 	Key    KeyType
 	Value  interface{}
-	Parent *BasicBST
-	Child  [2]*BasicBST // index is oneof {lo, hi}
+	Parent *AVL
+	Child  [2]*AVL // index is oneof {lo, hi}
+	Height int
 }
 
-func (n *BasicBST) IsSentinel() bool {
+func (n *AVL) height() int {
+	if n == nil || n.IsSentinel() {
+		return -1
+	}
+	return n.Height
+}
+
+func (n *AVL) updateHeight() int {
+	if n != nil && !n.IsSentinel() {
+		n.Height = 1 + imax(n.Child[lo].height(), n.Child[hi].height())
+	}
+	return n.height()
+}
+
+func (n *AVL) IsSentinel() bool {
 	return n != nil && n.Parent == n
 }
 
-// NewBasic allocates a new BasiccBST.
-func NewBasic() *BasicBST {
-	sentinel := &BasicBST{}
+// NewAVL allocates a new BasiccBST.
+func NewAVL() *AVL {
+	sentinel := &AVL{}
 	sentinel.Parent = sentinel
 	return sentinel
 }
 
-// Get retrieves a pointer to a BasicBST node for a given key.
-func (n *BasicBST) Get(k KeyType) *BasicBST {
+// Get retrieves a pointer to a AVL node for a given key.
+func (n *AVL) Get(k KeyType) *AVL {
 	switch {
 	case n == nil:
 		return nil
@@ -54,7 +56,7 @@ func (n *BasicBST) Get(k KeyType) *BasicBST {
 }
 
 // Visit visits the BST nodes in tree order.
-func (n *BasicBST) Visit(f func(n *BasicBST) error) error {
+func (n *AVL) Visit(f func(n *AVL) error) error {
 	if n == nil {
 		return nil
 	}
@@ -78,37 +80,34 @@ func (n *BasicBST) Visit(f func(n *BasicBST) error) error {
 }
 
 // Viz writes a DOT visualisation of the graph to an io.Writer
-func (n *BasicBST) Viz(iow io.Writer) {
+func (n *AVL) Viz(iow io.Writer) {
 	iow.Write([]byte("digraph treemap {\n"))
 	defer iow.Write([]byte("}\n"))
-	n.Child[lo].Visit(func(n *BasicBST) error {
+	n.Child[lo].Visit(func(n *AVL) error {
 		if n != nil {
 			if n.Child[lo] != nil {
-				text := fmt.Sprintf("  %s:w -> %s:n [label=\"lo\"];\n",
-					n.Key.String(), n.Child[lo].Key.String())
+				text := fmt.Sprintf("  %s(%d):w -> %s(%d):n [label=\"lo\"];\n",
+					n.Key.String(), n.height(),
+					n.Child[lo].Key.String(), n.Child[lo].height())
 				iow.Write([]byte(text))
 			}
 			if n.Child[hi] != nil {
-				text := fmt.Sprintf("  %s:e -> %s:n [label=\"hi\"];\n",
-					n.Key.String(), n.Child[hi].Key.String())
+				text := fmt.Sprintf("  %s(%d):e -> %s(%d):n [label=\"hi\"];\n",
+					n.Key.String(), n.height(),
+					n.Child[hi].Key.String(), n.Child[hi].height())
 				iow.Write([]byte(text))
 			}
-			// if !n.Parent.IsSentinel() {
-			// 	text := fmt.Sprintf("  %s -> %s [label=\"parent\", style=dashed];\n",
-			// 		n.Key.String(), n.Parent.Key.String())
-			// 	iow.Write([]byte(text))
-			// }
 		}
 		return nil
 	})
 }
 
 // Keys returns a channel to stream the keys from low to high.
-func (n *BasicBST) Keys(ctx context.Context) chan KeyType {
+func (n *AVL) Keys(ctx context.Context) chan KeyType {
 	keys := make(chan KeyType)
 	go func() {
 		defer close(keys)
-		n.Visit(func(n *BasicBST) error {
+		n.Visit(func(n *AVL) error {
 			select {
 			case keys <- n.Key:
 				return nil
@@ -121,13 +120,14 @@ func (n *BasicBST) Keys(ctx context.Context) chan KeyType {
 }
 
 // Check returns a channel of nodes violating the BST condition.
-func (n *BasicBST) Check(ctx context.Context) chan *BasicBST {
-	nodes := make(chan *BasicBST)
+func (n *AVL) Check(ctx context.Context) chan *AVL {
+	nodes := make(chan *AVL)
 	go func() {
 		defer close(nodes)
-		n.Visit(func(n *BasicBST) error {
+		n.Visit(func(n *AVL) error {
 			badLo := (n.Child[lo] != nil && !n.Child[lo].Key.Less(n.Key))
 			badHi := (n.Child[hi] != nil && !n.Key.Less(n.Child[hi].Key))
+			badBal := (n.Child[lo].height() - n.Child[hi].height())
 			if badLo || badHi {
 				select {
 				case nodes <- n:
@@ -143,11 +143,11 @@ func (n *BasicBST) Check(ctx context.Context) chan *BasicBST {
 }
 
 // Insert inserts a key, value pair into the BST.
-func (n *BasicBST) Insert(k KeyType, v interface{}) {
+func (n *AVL) Insert(k KeyType, v interface{}) {
 	switch {
 	case n.IsSentinel() || k.Less(n.Key):
 		if n.Child[lo] == nil {
-			n.Child[lo] = &BasicBST{
+			n.Child[lo] = &AVL{
 				Key:    k,
 				Value:  v,
 				Parent: n,
@@ -157,7 +157,7 @@ func (n *BasicBST) Insert(k KeyType, v interface{}) {
 		}
 	case n.Key.Less(k):
 		if n.Child[hi] == nil {
-			n.Child[hi] = &BasicBST{
+			n.Child[hi] = &AVL{
 				Key:    k,
 				Value:  v,
 				Parent: n,
@@ -171,7 +171,7 @@ func (n *BasicBST) Insert(k KeyType, v interface{}) {
 }
 
 // which returns the node's index from its parent.
-func (n *BasicBST) which() int {
+func (n *AVL) which() int {
 	switch p := n.Parent; {
 	case n == p.Child[lo]:
 		return lo
@@ -188,7 +188,7 @@ func opposite(d int) int {
 }
 
 // next returns the next tree node in the given direction.
-func (n *BasicBST) next(d int) *BasicBST {
+func (n *AVL) next(d int) *AVL {
 	r := opposite(d)
 	if n.Child[d] != nil {
 		cur := n.Child[d]
@@ -208,17 +208,17 @@ func (n *BasicBST) next(d int) *BasicBST {
 }
 
 // Next returns the next node.
-func (n *BasicBST) Next() *BasicBST {
+func (n *AVL) Next() *AVL {
 	return n.next(hi)
 }
 
 // Prev returns the previous node.
-func (n *BasicBST) Prev() *BasicBST {
+func (n *AVL) Prev() *AVL {
 	return n.next(lo)
 }
 
 // Delete removes a node from the tree.
-func (n *BasicBST) Delete() {
+func (n *AVL) Delete() {
 	switch {
 	case n.IsSentinel():
 		return
@@ -237,4 +237,18 @@ func (n *BasicBST) Delete() {
 		n.Value = cur.Value
 		cur.Delete()
 	}
+}
+
+func imax(a, b int) int {
+	if b > a {
+		return b
+	}
+	return a
+}
+
+func iabs(k int) int {
+	if k < 0 {
+		return -k
+	}
+	return k
 }
